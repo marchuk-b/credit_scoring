@@ -1,0 +1,14 @@
+services:
+  train:
+    build: .
+    command: sh -c "[ -f models/credit_model.joblib ] || python -m src.train"
+    volumes: [models:/app/models]
+  web:
+    build: .
+    ports: ["5000:5000"]
+    volumes: [models:/app/models]
+    depends_on:
+      train:
+        condition: service_completed_successfully
+volumes:
+  models:
