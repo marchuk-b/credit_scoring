@@ -1,12 +1,12 @@
 import argparse
 import json
-from datetime import datetime
 
 import joblib
 
 from . import config as C
 from . import data_processing as dp
 from .evaluate import evaluate
+from .report import build as build_report
 from .pipeline import build
 
 
@@ -40,12 +40,8 @@ def main(use_ensemble: bool = True):
 
     C.MODELS_DIR.mkdir(exist_ok=True)
     joblib.dump({"model": models[best], "name": best, "baseline": baseline}, C.MODEL_PATH)
-    C.REPORT_PATH.write_text(json.dumps({
-        "generated": datetime.now().isoformat(timespec="seconds"),
-        "best_model": best, "train_rows": len(X_tr), "test_rows": len(X_te),
-        "metrics": results,
-    }, indent=2, ensure_ascii=False, default=float))
-
+    report = build_report(results, best, models[best], X, y, groups, X_te, y_te, len(X_tr))
+    C.REPORT_PATH.write_text(json.dumps(report, indent=2, ensure_ascii=False, default=float))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

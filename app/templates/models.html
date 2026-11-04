@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Моделі{% endblock %}
+{% block content %}
+<h1>Порівняння моделей</h1>
+{% if not report %}
+<p class="muted">Звіт не знайдено. Виконайте <code>python -m src.train</code>.</p>
+{% else %}
+<p class="muted">Тестова вибірка: {{ "{:,}".format(report.test_rows) }} рядків (клієнти не перетинаються з навчальною). Оновлено {{ report.generated }}.</p>
+
+<h2>Метрики</h2>
+<div class="scroll"><table>
+  <tr><th>Модель</th>{% for k, label in metric_labels %}<th>{{ label }}</th>{% endfor %}</tr>
+  {% for name, m in report.metrics.items() %}
+  <tr class="{{ 'best' if name == report.best_model }}">
+    <td>{{ model_names.get(name, name) }}{% if name == report.best_model %} <span class="badge">у продакшені</span>{% endif %}</td>
+    {% for k, label in metric_labels %}<td>{{ "%.3f"|format(m[k]) }}</td>{% endfor %}
+  </tr>
+  {% endfor %}
+</table></div>
+
+<div class="grid">
+  {% for k, label in metric_labels %}
+  <div class="card">
+    <h3>{{ label }}</h3>
+    {% for name, m in report.metrics.items() %}
+    <div class="row"><span>{{ model_names.get(name, name) }}</span>
+      <div class="track"><i style="width:{{ (m[k] * 100)|round(1) }}%" class="{{ 'hi' if name == report.best_model }}"></i></div>
+      <b>{{ "%.3f"|format(m[k]) }}</b></div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+<p class="muted">Gini і KS — для виявлення клієнтів класу Poor. ROC-AUC — усереднений one-vs-rest за трьома класами.</p>
+
+{% if report.metrics.get("ensemble") and report.metrics.ensemble.weights %}
+<h2>Ваги ансамблю</h2>
+<div class="card">
+  {% for name, w in report.metrics.ensemble.weights.items() %}
+  <div class="row"><span>{{ name }}</span>
+    <div class="track"><i style="width:{{ (w * 100)|round(1) }}%"></i></div>
+    <b>{{ (w * 100)|round(1) }}% · AUC {{ "%.3f"|format(report.metrics.ensemble.cv_auc[name]) }}</b></div>
+  {% endfor %}
+  <p class="muted">Вага ∝ (ROC-AUC на out-of-fold прогнозах − 0.5); крос-валідація за Customer_ID.</p>
+</div>
+{% endif %}
+
+<h2>Матриці помилок</h2>
+<p class="muted">Рядки — справжній клас, стовпці — прогноз. Яскравість — частка рядка.</p>
+<div class="grid">
+  {% for name, m in report.metrics.items() %}
+  <div class="card">
+    <h3>{{ model_names.get(name, name) }}</h3>
+    <table class="cm">
+      <tr><th></th>{% for c in classes %}<th>{{ c }}</th>{% endfor %}</tr>
+      {% for row in m.confusion_matrix %}{% set total = row|sum %}
+      <tr><th>{{ classes[loop.index0] }}</th>
+        {% for v in row %}<td style="--a:{{ (v / total)|round(2) if total else 0 }}">{{ "{:,}".format(v) }}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endfor %}
+</div>
+
+<h2>Найкраща модель: {{ model_names.get(report.best_model, report.best_model) }}</h2>
+<div class="grid">
+  <div class="card">
+    <h3>Якість за класами</h3>
+    <table>
+      <tr><th>Клас</th><th>Precision</th><th>Recall</th><th>F1</th><th>Рядків</th></tr>
+      {% for c in report.best.per_class %}
+      <tr><td>{{ c.name }}</td><td>{{ c.precision }}</td><td>{{ c.recall }}</td><td>{{ c["f1-score"] }}</td><td>{{ "{:,}".format(c.support) }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  <div class="card">
+    <h3>Важливість ознак</h3>
+    <p class="muted">Падіння macro-F1 при перемішуванні ознаки.</p>
+    {% set top = report.best.importance[0].drop or 1 %}
+    {% for f in report.best.importance %}
+    <div class="row"><span title="{{ f.feature }}">{{ f.feature|feature_label }}</span>
+      <div class="track"><i style="width:{{ (100 * f.drop / top)|round(1) if f.drop > 0 else 0 }}%"></i></div>
+      <b>{{ f.drop }}</b></div>
+    {% endfor %}
+  </div>
+</div>
+
+<h3>Розподіл скору за справжніми класами</h3>
+{% set h = report.best.score_hist %}
+{% set peak = [h.counts.Poor|max, h.counts.Standard|max, h.counts.Good|max]|max %}
+<div class="card hist">
+  <div class="legend"><span class="p">Poor</span><span class="s">Standard</span><span class="g">Good</span></div>
+  {% for i in range(h.counts.Poor|length) %}
+  <div class="hrow"><span>{{ h.edges[i] }}–{{ h.edges[i+1] }}</span>
+    <div>
+      <i class="p" style="width:{{ (100 * h.counts.Poor[i] / peak)|round(1) }}%"></i>
+      <i class="s" style="width:{{ (100 * h.counts.Standard[i] / peak)|round(1) }}%"></i>
+      <i class="g" style="width:{{ (100 * h.counts.Good[i] / peak)|round(1) }}%"></i>
+    </div></div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

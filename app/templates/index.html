@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Скоринг{% endblock %}
+{% block content %}
+<h1>Кредитний скорінг</h1>
+  <p class="muted">Оцінка в реальному часі з поясненням рішення. Порожні поля модель обробляє як невідомі.</p>
+  <div class="layout">
+    <form id="f">
+      <label>Вік* <input name="Age" type="number" value="35" required></label>
+      <label>Річний дохід* <input name="Annual_Income" type="number" value="40000" required></label>
+      <label>Борг (Outstanding_Debt)* <input name="Outstanding_Debt" type="number" value="1200" required></label>
+      <label>Затримка платежу, днів* <input name="Delay_from_due_date" type="number" value="10" required></label>
+      <label>Прострочених платежів <input name="Num_of_Delayed_Payment" type="number" value="5"></label>
+      <label>Кредитних карток <input name="Num_Credit_Card" type="number" value="4"></label>
+      <label>Відсоткова ставка, % <input name="Interest_Rate" type="number" value="12"></label>
+      <label>Кількість кредитів <input name="Num_of_Loan" type="number" value="2"></label>
+      <label>Запитів до бюро <input name="Num_Credit_Inquiries" type="number" value="3"></label>
+      <label>Використання ліміту, % <input name="Credit_Utilization_Ratio" type="number" step="any" value="30"></label>
+      <label>Кредитна історія, міс. <input name="Credit_History_Age" type="number" value="150"></label>
+      <label>Щомісячний EMI <input name="Total_EMI_per_month" type="number" step="any" value="60"></label>
+      <label>Структура кредитів
+        <select name="Credit_Mix"><option value="">невідомо</option><option>Good</option><option>Standard</option><option>Bad</option></select></label>
+      <label>Сплата мінімального платежу
+        <select name="Payment_of_Min_Amount"><option>Yes</option><option>No</option><option>NM</option></select></label>
+      <button>Розрахувати</button>
+    </form>
+    <section id="out" hidden>
+      <div id="score"></div>
+      <div id="decision"></div>
+      <div id="probs"></div>
+      <p class="muted" id="base"></p>
+      <div class="cols">
+        <div><h3>Що підвищило скор</h3><ul id="up"></ul></div>
+        <div><h3>Що знизило скор</h3><ul id="down"></ul></div>
+      </div>
+    </section>
+  </div>
+{% endblock %}
+{% block scripts %}
+<script>
+const f = document.getElementById("f"), out = document.getElementById("out");
+const li = (o) => `<li title="${o.feature}"><b>${o.label}:</b> ${o.display} <span>${o.impact > 0 ? "+" : ""}${o.impact.toFixed(0)} б.</span></li>`;
+f.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const body = Object.fromEntries(new FormData(f));
+  const r = await fetch("/api/score", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const d = await r.json();
+  out.hidden = false;
+  out.scrollIntoView({behavior: "smooth", block: "nearest"});
+  if (!r.ok) { document.getElementById("score").textContent = d.error; return; }
+  document.getElementById("score").textContent = d.score;
+  document.getElementById("decision").textContent = d.decision + " (" + d.class + ")";
+  document.getElementById("probs").textContent = Object.entries(d.probabilities).map(([k, v]) => `${k}: ${(v*100).toFixed(1)}%`).join("  ·  ");
+  document.getElementById("base").textContent = `Внески показано в балах відносно типового клієнта (${d.explanation.base_score} б.): «+» підвищує скор, «−» знижує.`;
+  document.getElementById("up").innerHTML = d.explanation.raise_score.map(li).join("") || "<li>—</li>";
+  document.getElementById("down").innerHTML = d.explanation.lower_score.map(li).join("") || "<li>—</li>";
+});
+</script>
+{% endblock %}

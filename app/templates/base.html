@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{% endblock %} · Кредитний скорінг</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <div class="bar">
+    <strong>Кредитний скорінг</strong>
+    <nav>
+      <a href="{{ url_for('index') }}" class="{{ 'on' if request.endpoint == 'index' }}">Скоринг</a>
+      <a href="{{ url_for('models_page') }}" class="{{ 'on' if request.endpoint == 'models_page' }}">Моделі</a>
+      <a href="{{ url_for('dataset_page') }}" class="{{ 'on' if request.endpoint == 'dataset_page' }}">Дані</a>
+    </nav>
+  </div>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>

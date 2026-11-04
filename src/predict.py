@@ -1,3 +1,4 @@
+"""Скоринг одного клієнта + пояснення рішення (reason codes)."""
 from functools import lru_cache
 
 import joblib
@@ -7,6 +8,7 @@ import pandas as pd
 from . import config as C
 from . import data_processing as dp
 from .evaluate import score_from_proba
+from .labels import display_value, label
 
 DECISIONS = {"Good": "Схвалено", "Standard": "На ручний розгляд", "Poor": "Відмова"}
 
@@ -26,6 +28,12 @@ def _score(model, X):
 
 
 def explain(row: pd.DataFrame, bundle, top: int = 5):
+    """Наближені значення Шеплі (вибірка перестановок).
+
+    Рухаємось від «типового клієнта» (медіани навчальної вибірки) до реального, по одній
+    ознаці у випадковому порядку. Приріст скору при кожному кроці — внесок цієї ознаки.
+    Сума внесків = скор клієнта − скор типового клієнта.
+    """
     model, base = bundle["model"], bundle["baseline"]
     rng = np.random.default_rng(C.RANDOM_STATE)
     client = row.iloc[0]
@@ -51,7 +59,8 @@ def explain(row: pd.DataFrame, bundle, top: int = 5):
         contrib[order] += np.diff(scores_p)
     contrib /= N_PERMUTATIONS
 
-    out = [{"feature": u, "value": _py(client[u]), "impact": float(c)}
+    out = [{"feature": u, "label": label(u), "value": _py(client[u]),
+            "display": display_value(u, client[u]), "impact": float(c)}
            for u, c in zip(units, contrib) if abs(c) >= 1]
     pos = sorted((o for o in out if o["impact"] > 0), key=lambda o: -o["impact"])[:top]
     neg = sorted((o for o in out if o["impact"] < 0), key=lambda o: o["impact"])[:top]

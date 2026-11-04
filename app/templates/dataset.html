@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Дані{% endblock %}
+{% block content %}
+<h1>Набір даних</h1>
+{% if not report %}
+<p class="muted">Звіт не знайдено. Виконайте <code>python -m src.train</code>.</p>
+{% else %}{% set d = report.dataset %}
+<div class="stats">
+  <div class="card"><small>Рядків</small><b>{{ "{:,}".format(d.rows) }}</b></div>
+  <div class="card"><small>Клієнтів</small><b>{{ "{:,}".format(d.customers) }}</b></div>
+  <div class="card"><small>Записів на клієнта</small><b>{{ d.rows_per_customer }}</b></div>
+  <div class="card"><small>Клієнтів зі зміною мітки</small><b>{{ d.changing_label_pct }}%</b></div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h3>Розподіл класів</h3>
+    {% for c in d.classes %}
+    <div class="row"><span>{{ c.name }}</span>
+      <div class="track"><i style="width:{{ c.pct }}%"></i></div>
+      <b>{{ c.pct }}% · {{ "{:,}".format(c.rows) }}</b></div>
+    {% endfor %}
+    <p class="muted">Дисбаланс враховано вагами класів; оцінка — macro-F1 і ROC-AUC.</p>
+  </div>
+  <div class="card">
+    <h3>Придатні значення після очищення</h3>
+    {% for q in d.quality %}
+    <div class="row"><span title="{{ q.feature }}">{{ q.feature|feature_label }}</span>
+      <div class="track"><i style="width:{{ q.valid_pct }}%" class="{{ 'warn' if q.valid_pct < 95 }}"></i></div>
+      <b>{{ q.valid_pct }}%</b></div>
+    {% endfor %}
+    <p class="muted">Решта — пропуски, сміття (<code>_</code>, <code>__10000__</code>) і значення поза допустимим діапазоном; для моделі це пропуски.</p>
+  </div>
+</div>
+<div class="card">
+  <h3>Особливості даних</h3>
+  <ul>
+    <li>Кожен клієнт має {{ d.rows_per_customer }} місячних записів, тому розбиття та крос-валідація йдуть за <code>Customer_ID</code>.</li>
+    <li>У {{ d.changing_label_pct }}% клієнтів мітка змінюється між місяцями: модель оцінює місячний запис, а не постійну характеристику.</li>
+    <li>Ім'я, SSN та ID не використовуються як ознаки.</li>
+  </ul>
+</div>
+{% endif %}
+{% endblock %}
