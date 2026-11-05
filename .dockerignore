@@ -1,0 +1,23 @@
+# система контролю версій і середовища
+.git
+.gitignore
+.venv/
+venv/
+.idea/
+.vscode/
+ 
+# кеші
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+ 
+# не потрібно для роботи сервісу
+notebooks/
+tests/
+README.md
+data/test.csv
+ 
+# модель навчається всередині контейнера, щоб версії бібліотек збігалися
+models/
+ 
