@@ -32,11 +32,29 @@
 </div>
 <p class="muted">Gini і KS — для виявлення клієнтів класу Poor. ROC-AUC — усереднений one-vs-rest за трьома класами.</p>
 
+{% if cv %}
+<h2>Крос-валідація</h2>
+<p class="muted">5 блоків із розбиттям за Customer_ID на навчальній частині (середнє ± σ). Створено командою <code>python -m src.cv</code>.</p>
+<div class="scroll"><table>
+  <tr><th>Модель</th><th>ROC-AUC</th><th>F1 macro</th><th>Час, с</th></tr>
+  {% set best_auc = cv.values()|map(attribute="auc_mean")|max %}
+  {% for name, m in cv.items() %}
+  <tr class="{{ 'best' if m.auc_mean == best_auc }}">
+    <td>{{ model_names.get(name, name) }}</td>
+    <td>{{ "%.3f"|format(m.auc_mean) }} ± {{ "%.3f"|format(m.auc_std) }}</td>
+    <td>{{ "%.3f"|format(m.f1_mean) }} ± {{ "%.3f"|format(m.f1_std) }}</td>
+    <td>{{ m.seconds }}</td>
+  </tr>
+  {% endfor %}
+</table></div>
+<p class="muted">Виділено модель із найвищим ROC-AUC; різниці менші за σ не є статистично значущими.</p>
+{% endif %}
+
 {% if report.metrics.get("ensemble") and report.metrics.ensemble.weights %}
 <h2>Ваги ансамблю</h2>
 <div class="card">
   {% for name, w in report.metrics.ensemble.weights.items() %}
-  <div class="row"><span>{{ name }}</span>
+  <div class="row"><span>{{ model_names.get(name, name) }}</span>
     <div class="track"><i style="width:{{ (w * 100)|round(1) }}%"></i></div>
     <b>{{ (w * 100)|round(1) }}% · AUC {{ "%.3f"|format(report.metrics.ensemble.cv_auc[name]) }}</b></div>
   {% endfor %}
@@ -54,7 +72,7 @@
       <tr><th></th>{% for c in classes %}<th>{{ c }}</th>{% endfor %}</tr>
       {% for row in m.confusion_matrix %}{% set total = row|sum %}
       <tr><th>{{ classes[loop.index0] }}</th>
-        {% for v in row %}<td style="--a:{{ (v / total)|round(2) if total else 0 }}">{{ "{:,}".format(v) }}</td>{% endfor %}
+        {% for v in row %}<td style="--a: attr(data-alpha)" data-alpha="{{ (v / total)|round(2) if total else 0 }}">{{ "{:,}".format(v) }}</td>{% endfor %}
       </tr>
       {% endfor %}
     </table>

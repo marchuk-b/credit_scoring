@@ -27,6 +27,8 @@ def test_score_ok():
     assert d["class"] in C.CLASSES
     assert abs(sum(d["probabilities"].values()) - 1) < 1e-3
     assert "raise_score" in d["explanation"]
+    for item in d["explanation"]["raise_score"] + d["explanation"]["lower_score"]:
+        assert item["label"] and item["display"]
 
 
 def test_score_missing_fields():
@@ -40,3 +42,8 @@ def test_pages_and_report():
         assert client.get(url).status_code == 200, url
     report = client.get("/api/report").get_json()
     assert {"metrics", "dataset", "best", "best_model"} <= report.keys()
+
+
+def test_models_page_shows_cv_when_available():
+    html = app.test_client().get("/models").get_data(as_text=True)
+    assert ("Крос-валідація" in html) == (C.MODELS_DIR / "cv_report.json").exists()

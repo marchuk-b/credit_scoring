@@ -5,15 +5,22 @@ import joblib
 
 from . import config as C
 from . import data_processing as dp
+from .cv import cross_validate, save as save_cv
 from .evaluate import evaluate
-from .report import build as build_report
 from .pipeline import build
+from .report import build as build_report
 
 
-def main(use_ensemble: bool = True):
+def main(use_ensemble: bool = True, use_cv: bool = True):
     X, y, groups = dp.load_train()
     X_tr, X_te, y_tr, y_te, g_tr = dp.split(X, y, groups)
     print(f"train={len(X_tr):,} test={len(X_te):,} (розбиття за Customer_ID)")
+
+    if use_cv:  # 1) валідація кандидатів на навчальній частині (тест не використовується)
+        print("Крос-валідація (5 блоків за Customer_ID):")
+        save_cv(cross_validate(X_tr, y_tr, g_tr))
+
+    print("Навчання та оцінювання на відкладеній вибірці:")  # 2) фінальне навчання
 
     results, models = {}, {}
     names = ["logreg", "gboost"] + (["ensemble"] if use_ensemble else [])
@@ -43,7 +50,10 @@ def main(use_ensemble: bool = True):
     report = build_report(results, best, models[best], X, y, groups, X_te, y_te, len(X_tr))
     C.REPORT_PATH.write_text(json.dumps(report, indent=2, ensure_ascii=False, default=float))
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-ensemble", action="store_true", help="пропустити довге навчання ансамблю")
-    main(use_ensemble=not parser.parse_args().no_ensemble)
+    parser.add_argument("--no-cv", action="store_true", help="пропустити крос-валідацію")
+    args = parser.parse_args()
+    main(use_ensemble=not args.no_ensemble, use_cv=not args.no_cv)

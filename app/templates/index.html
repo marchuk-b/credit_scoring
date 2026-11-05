@@ -38,7 +38,10 @@
 {% block scripts %}
 <script>
 const f = document.getElementById("f"), out = document.getElementById("out");
-const li = (o) => `<li title="${o.feature}"><b>${o.label}:</b> ${o.display} <span>${o.impact > 0 ? "+" : ""}${o.impact.toFixed(0)} б.</span></li>`;
+const li = (o) => {
+  const name = o.label ?? o.feature, shown = o.display ?? o.value, sign = o.impact > 0 ? "+" : "";
+  return `<li title="${o.feature}"><b>${name}:</b> ${shown} <span>${sign}${Math.round(o.impact)} б.</span></li>`;
+};
 f.addEventListener("submit", async (e) => {
   e.preventDefault();
   const body = Object.fromEntries(new FormData(f));
@@ -50,7 +53,9 @@ f.addEventListener("submit", async (e) => {
   document.getElementById("score").textContent = d.score;
   document.getElementById("decision").textContent = d.decision + " (" + d.class + ")";
   document.getElementById("probs").textContent = Object.entries(d.probabilities).map(([k, v]) => `${k}: ${(v*100).toFixed(1)}%`).join("  ·  ");
-  document.getElementById("base").textContent = `Внески показано в балах відносно типового клієнта (${d.explanation.base_score} б.): «+» підвищує скор, «−» знижує.`;
+  const base = d.explanation.base_score;
+  document.getElementById("base").textContent = base === undefined ? "" :
+    `Внески показано в балах відносно типового клієнта (${base} б.): «+» підвищує скор, «−» знижує.`;
   document.getElementById("up").innerHTML = d.explanation.raise_score.map(li).join("") || "<li>—</li>";
   document.getElementById("down").innerHTML = d.explanation.lower_score.map(li).join("") || "<li>—</li>";
 });
